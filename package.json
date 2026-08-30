@@ -79,6 +79,19 @@
     "collectCoverageFrom": [
       "**/*.(t|j)s"
     ],
+    "coveragePathIgnorePatterns": [
+      "/node_modules/",
+      "main.ts",
+      "\\.module\\.ts$",
+      "\\.entity\\.ts$",
+      "\\.dto\\.ts$",
+      "role.enum.ts",
+      "roles.decorator.ts",
+      "/migrations/",
+      "data-source.ts",
+      "seed.ts",
+      "mint-token.ts"
+    ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
   }
