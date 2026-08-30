@@ -73,6 +73,45 @@ The API listens on port 3000. To use a different port, set the `PORT` variable:
 PORT=3002 npm run start:dev
 ```
 
+## Authentication
+
+Every endpoint requires a bearer token. Send it in the `Authorization` header:
+
+```
+Authorization: Bearer <token>
+```
+
+There are two roles for authz.
+- `user` - read
+- `admin` - read and write
+
+For demonstration purposes: there is no login endpoint. Mint a fixed JWT for the test sessions:
+
+```bash
+npm run mint-token admin
+npm run mint-token user
+```
+
+Use the token in a request:
+
+```bash
+ADMIN=$(npm run mint-token admin --silent)
+curl -H "Authorization: Bearer $ADMIN" localhost:3000/api/v1/services
+```
+
+The API returns these codes:
+
+- `401` when the token is missing or invalid
+- `403` when a request is denied permission
+
+## API documentation
+
+View OpenAPI specification:
+
+```
+http://localhost:3000/api/docs
+```
+
 ## Database scripts
 
 Use these scripts to manage the schema:

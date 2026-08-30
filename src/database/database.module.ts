@@ -1,3 +1,4 @@
+import { join } from 'path';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -16,6 +17,9 @@ import { TypeOrmModule } from '@nestjs/typeorm';
         database: config.get<string>('DATABASE_NAME', 'services'),
         autoLoadEntities: true,
         synchronize: false,
+        // Apply pending migrations at startup.
+        migrations: [join(__dirname, 'migrations', '*.{js,ts}')],
+        migrationsRun: true,
       }),
     }),
   ],
