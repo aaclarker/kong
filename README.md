@@ -1,73 +1,109 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="200" alt="Nest Logo" /></a>
-</p>
+# Services Catalog API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A read-mostly API that lists services and their versions.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Prerequisites
 
-## Description
+You must install these tools first:
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+- Node.js 20 (this repo pins the version in `.tool-versions`; use `mise install`).
+- Docker with Docker Compose.
 
-## Installation
+If `node` is not on your PATH, prefix each command with `mise exec --`.
+
+## 1. Install dependencies
+
+Run this command:
 
 ```bash
-$ npm install
+npm install
 ```
 
-## Running the app
+## 2. Configure the environment
+
+Copy the example file:
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+cp .env.example .env
 ```
 
-## Test
+The default values match the Docker database. Do not change them for local use.
+
+## 3. Start the database
+
+Start Postgres in the background:
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+docker compose up -d
 ```
 
-## Support
+Wait until the database is healthy. Check the status:
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+```bash
+docker compose ps
+```
 
-## Stay in touch
+## 4. Create the schema
 
-- Author - [Kamil Myśliwiec](https://kamilmysliwiec.com)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+Run the migrations:
 
-## License
+```bash
+npm run migration:run
+```
 
-Nest is [MIT licensed](LICENSE).
+Confirm the tables exist:
+
+```bash
+docker compose exec postgres psql -U kong -d services -c '\dt'
+```
+
+You must see the `services`, `versions`, and `migrations` tables.
+
+## 5. Start the API
+
+Start the server in watch mode:
+
+```bash
+npm run start:dev
+```
+
+The API listens on port 3000. To use a different port, set the `PORT` variable:
+
+```bash
+PORT=3002 npm run start:dev
+```
+
+## Database scripts
+
+Use these scripts to manage the schema:
+
+| Command | Action |
+| --- | --- |
+| `npm run migration:run` | Apply all pending migrations. |
+| `npm run migration:revert` | Undo the last migration. |
+| `npm run migration:generate -- src/database/migrations/<Name>` | Create a migration from entity changes. |
+
+To generate a migration, do these steps:
+
+1. Change an entity file.
+2. Run the generate command with a name. Example:
+
+   ```bash
+   npm run migration:generate -- src/database/migrations/AddServiceTags
+   ```
+
+3. Run the migration.
+
+## Tests
+
+Run the unit tests:
+
+```bash
+npm run test
+```
+
+Run the end-to-end tests:
+
+```bash
+npm run test:e2e
+```
