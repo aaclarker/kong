@@ -59,7 +59,20 @@ docker compose exec postgres psql -U kong -d services -c '\dt'
 
 You must see the `services`, `versions`, and `migrations` tables.
 
-## 5. Start the API
+Note: the server also applies pending migrations on startup, so a fresh
+database is set up even if you skip this step.
+
+## 5. Seed demo data
+
+Load the example services so the API returns data:
+
+```bash
+npm run seed
+```
+
+The seed is idempotent. Run it again at any time to reset the demo data.
+
+## 6. Start the API
 
 Start the server in watch mode:
 
@@ -90,6 +103,17 @@ For demonstration purposes: there is no login endpoint. Mint a fixed JWT for the
 ```bash
 npm run mint-token admin
 npm run mint-token user
+```
+
+For convenience, these pre-minted demo tokens work with the default
+`JWT_SECRET` in `.env.example`:
+
+```
+# admin (read + write)
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbi1kZW1vIiwicm9sZSI6ImFkbWluIiwiaWF0IjoxNzg4MDYyMTcxfQ.-mX5F4M7t5LMKR4YH08ufjIvVIFM8lH10QbHQWCgDvs
+
+# user (read only)
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLWRlbW8iLCJyb2xlIjoidXNlciIsImlhdCI6MTc4ODA2MjE3Mn0.-Cq7jRcbRqXoCHSVHmg_pUVmlKjNyHp6LbjuQR55E4Y
 ```
 
 Use the token in a request:
