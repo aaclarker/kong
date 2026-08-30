@@ -1,26 +1,51 @@
-import { Injectable } from '@nestjs/common';
-import { CreateVersionDto } from './dto/create-version.dto';
-import { UpdateVersionDto } from './dto/update-version.dto';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Version } from './entities/version.entity';
+import { Service } from '../services/entities/service.entity';
+
+export interface FindVersionsParams {
+  page?: number;
+  limit?: number;
+}
 
 @Injectable()
 export class VersionsService {
-  create(createVersionDto: CreateVersionDto) {
-    return 'This action adds a new version';
-  }
+  constructor(
+    @InjectRepository(Version)
+    private readonly versions: Repository<Version>,
+    @InjectRepository(Service)
+    private readonly services: Repository<Service>,
+  ) {}
 
-  findAll() {
-    return `This action returns all versions`;
-  }
+  async findByService(serviceId: string, params: FindVersionsParams) {
+    // 404 when the parent service does not exist (distinct from a service
+    // that simply has no versions — which cannot happen given the invariant).
+    const serviceExists = await this.services.count({
+      where: { id: serviceId },
+    });
+    if (!serviceExists) {
+      throw new NotFoundException(`Service ${serviceId} not found`);
+    }
 
-  findOne(id: number) {
-    return `This action returns a #${id} version`;
-  }
+    const page = params.page ?? 1;
+    const limit = params.limit ?? 20;
 
-  update(id: number, updateVersionDto: UpdateVersionDto) {
-    return `This action updates a #${id} version`;
-  }
+    const [data, total] = await this.versions.findAndCount({
+      where: { serviceId },
+      order: { createdAt: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
 
-  remove(id: number) {
-    return `This action removes a #${id} version`;
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 }
