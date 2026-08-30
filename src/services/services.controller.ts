@@ -14,6 +14,8 @@ import { ServicesService } from './services.service';
 import { CreateServiceDto } from './dto/create-service.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
 import { FindServicesQueryDto } from './dto/find-services-query.dto';
+import { Roles } from '../auth/roles.decorator';
+import { Role } from '../auth/role.enum';
 
 @Controller('services')
 export class ServicesController {
@@ -30,11 +32,13 @@ export class ServicesController {
   }
 
   @Post()
+  @Roles(Role.Admin)
   create(@Body() dto: CreateServiceDto) {
     return this.servicesService.create(dto);
   }
 
   @Patch(':id')
+  @Roles(Role.Admin)
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateServiceDto,
@@ -43,6 +47,7 @@ export class ServicesController {
   }
 
   @Delete(':id')
+  @Roles(Role.Admin)
   @HttpCode(204)
   remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.servicesService.remove(id);

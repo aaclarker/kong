@@ -82,8 +82,7 @@ export class ServicesService {
   }
 
   async create(dto: CreateServiceDto) {
-    // Service + initial version in one save; cascade:['insert'] on the
-    // relation persists both in a single transaction (ADR 0001).
+    // Persist service + first version atomically (cascade:['insert']).
     const service = this.repo.create({
       name: dto.name,
       description: dto.description,
@@ -94,7 +93,7 @@ export class ServicesService {
   }
 
   async update(id: string, dto: UpdateServiceDto) {
-    // preload = load existing row + merge the patch; undefined when missing.
+    // load + merge patch; undefined when missing.
     const service = await this.repo.preload({ id, ...dto });
     if (!service) {
       throw new NotFoundException(`Service ${id} not found`);
@@ -104,7 +103,7 @@ export class ServicesService {
   }
 
   async remove(id: string) {
-    // FK ON DELETE CASCADE removes the service's versions at the DB level.
+    // FK cascade removes versions.
     const result = await this.repo.delete(id);
     if (!result.affected) {
       throw new NotFoundException(`Service ${id} not found`);

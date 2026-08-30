@@ -35,8 +35,6 @@ export class VersionsService {
   ) {}
 
   async findByService(serviceId: string, params: FindVersionsParams) {
-    // 404 when the parent service does not exist (distinct from a service
-    // that simply has no versions — which cannot happen given the invariant).
     await this.assertServiceExists(serviceId);
 
     const page = params.page ?? 1;
@@ -102,7 +100,7 @@ export class VersionsService {
     if (!version) {
       throw new NotFoundException(`Version ${versionId} not found`);
     }
-    // A service must always keep at least one version (ADR 0001).
+    // Keep at least one version per service.
     const count = await this.versions.count({ where: { serviceId } });
     if (count <= 1) {
       throw new ConflictException(

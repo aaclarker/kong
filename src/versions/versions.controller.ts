@@ -14,6 +14,8 @@ import { VersionsService } from './versions.service';
 import { CreateVersionDto } from './dto/create-version.dto';
 import { UpdateVersionDto } from './dto/update-version.dto';
 import { FindVersionsQueryDto } from './dto/find-versions-query.dto';
+import { Roles } from '../auth/roles.decorator';
+import { Role } from '../auth/role.enum';
 
 @Controller('services/:serviceId/versions')
 export class VersionsController {
@@ -28,6 +30,7 @@ export class VersionsController {
   }
 
   @Post()
+  @Roles(Role.Admin)
   create(
     @Param('serviceId', ParseUUIDPipe) serviceId: string,
     @Body() dto: CreateVersionDto,
@@ -36,6 +39,7 @@ export class VersionsController {
   }
 
   @Patch(':versionId')
+  @Roles(Role.Admin)
   update(
     @Param('serviceId', ParseUUIDPipe) serviceId: string,
     @Param('versionId', ParseUUIDPipe) versionId: string,
@@ -45,6 +49,7 @@ export class VersionsController {
   }
 
   @Delete(':versionId')
+  @Roles(Role.Admin)
   @HttpCode(204)
   remove(
     @Param('serviceId', ParseUUIDPipe) serviceId: string,

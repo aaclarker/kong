@@ -16,7 +16,7 @@ export class CreateServiceDto {
   @MinLength(1)
   description: string;
 
-  // Required: a service must be created with its first version (ADR 0001).
+  // A service is created with its first version.
   @IsDefined()
   @ValidateNested()
   @Type(() => CreateVersionDto)
