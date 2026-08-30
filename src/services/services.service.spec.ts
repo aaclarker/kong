@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ServicesService } from './services.service';
@@ -89,6 +89,12 @@ describe('ServicesService', () => {
   });
 
   describe('update', () => {
+    it('throws 400 on an empty body', async () => {
+      await expect(service.update('a', {})).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+    });
+
     it('throws 404 when the service does not exist', async () => {
       repo.preload.mockResolvedValue(undefined);
       await expect(service.update('a', { name: 'x' })).rejects.toBeInstanceOf(

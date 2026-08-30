@@ -1,14 +1,15 @@
-import { IsOptional, IsString, MinLength } from 'class-validator';
+import { ValidateIf, IsString, MinLength } from 'class-validator';
 
-// Only service fields are patchable here. Versions are managed through the
-// version endpoints, so `version` is intentionally not accepted.
+// Only service fields patchable here, not version fields.
+// ValidateIf instead of IsOptional so an explicit null is rejected rather
+// than skipped and merged into a NOT NULL column.
 export class UpdateServiceDto {
-  @IsOptional()
+  @ValidateIf((_, value) => value !== undefined)
   @IsString()
   @MinLength(1)
   name?: string;
 
-  @IsOptional()
+  @ValidateIf((_, value) => value !== undefined)
   @IsString()
   @MinLength(1)
   description?: string;

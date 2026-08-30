@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Service } from './entities/service.entity';
@@ -93,6 +97,9 @@ export class ServicesService {
   }
 
   async update(id: string, dto: UpdateServiceDto) {
+    if (Object.keys(dto).length === 0) {
+      throw new BadRequestException('Empty update');
+    }
     // load + merge patch; undefined when missing.
     const service = await this.repo.preload({ id, ...dto });
     if (!service) {

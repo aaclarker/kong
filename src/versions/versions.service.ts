@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -74,6 +75,9 @@ export class VersionsService {
   }
 
   async update(serviceId: string, versionId: string, dto: UpdateVersionDto) {
+    if (Object.keys(dto).length === 0) {
+      throw new BadRequestException('Empty update');
+    }
     const version = await this.versions.findOne({
       where: { id: versionId, serviceId },
     });
@@ -94,20 +98,31 @@ export class VersionsService {
   }
 
   async remove(serviceId: string, versionId: string) {
-    const version = await this.versions.findOne({
-      where: { id: versionId, serviceId },
+    // Lock the parent Service row so concurrent deletes don't remove the last Version
+    // using a SELECT FOR UPDATE pattern
+    await this.versions.manager.transaction(async (m) => {
+      const service = await m.findOne(Service, {
+        where: { id: serviceId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!service) {
+        throw new NotFoundException(`Service ${serviceId} not found`);
+      }
+      const version = await m.findOne(Version, {
+        where: { id: versionId, serviceId },
+      });
+      if (!version) {
+        throw new NotFoundException(`Version ${versionId} not found`);
+      }
+      // Keep at least one version per service.
+      const count = await m.count(Version, { where: { serviceId } });
+      if (count <= 1) {
+        throw new ConflictException(
+          'Cannot delete the last version of a service',
+        );
+      }
+      await m.remove(version);
     });
-    if (!version) {
-      throw new NotFoundException(`Version ${versionId} not found`);
-    }
-    // Keep at least one version per service.
-    const count = await this.versions.count({ where: { serviceId } });
-    if (count <= 1) {
-      throw new ConflictException(
-        'Cannot delete the last version of a service',
-      );
-    }
-    await this.versions.remove(version);
   }
 
   private async assertServiceExists(serviceId: string) {

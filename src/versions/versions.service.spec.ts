@@ -1,4 +1,8 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { QueryFailedError } from 'typeorm';
@@ -12,6 +16,8 @@ const uniqueViolation = () =>
 describe('VersionsService', () => {
   let service: VersionsService;
 
+  // Manager used inside remove()'s transaction.
+  const tx = { findOne: jest.fn(), count: jest.fn(), remove: jest.fn() };
   const versions = {
     findAndCount: jest.fn(),
     findOne: jest.fn(),
@@ -19,11 +25,13 @@ describe('VersionsService', () => {
     save: jest.fn(),
     remove: jest.fn(),
     count: jest.fn(),
+    manager: { transaction: jest.fn((cb: any) => cb(tx)) },
   };
   const services = { count: jest.fn() };
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    versions.manager.transaction.mockImplementation((cb: any) => cb(tx));
     const moduleRef = await Test.createTestingModule({
       providers: [
         VersionsService,
@@ -70,6 +78,12 @@ describe('VersionsService', () => {
   });
 
   describe('update', () => {
+    it('throws 400 on an empty body', async () => {
+      await expect(service.update('s', 'v', {})).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+    });
+
     it('throws 404 when the version is missing', async () => {
       versions.findOne.mockResolvedValue(null);
       await expect(
@@ -79,27 +93,40 @@ describe('VersionsService', () => {
   });
 
   describe('remove', () => {
+    it('throws 404 when the service is missing', async () => {
+      tx.findOne.mockResolvedValueOnce(null); // service lookup
+      await expect(service.remove('s', 'v')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+
     it('throws 404 when the version is missing', async () => {
-      versions.findOne.mockResolvedValue(null);
+      tx.findOne
+        .mockResolvedValueOnce({ id: 's' }) // service
+        .mockResolvedValueOnce(null); // version
       await expect(service.remove('s', 'v')).rejects.toBeInstanceOf(
         NotFoundException,
       );
     });
 
     it('throws 409 when removing the last version', async () => {
-      versions.findOne.mockResolvedValue({ id: 'v' });
-      versions.count.mockResolvedValue(1);
+      tx.findOne
+        .mockResolvedValueOnce({ id: 's' })
+        .mockResolvedValueOnce({ id: 'v' });
+      tx.count.mockResolvedValue(1);
       await expect(service.remove('s', 'v')).rejects.toBeInstanceOf(
         ConflictException,
       );
     });
 
     it('removes when other versions remain', async () => {
-      versions.findOne.mockResolvedValue({ id: 'v' });
-      versions.count.mockResolvedValue(2);
-      versions.remove.mockResolvedValue(undefined);
+      tx.findOne
+        .mockResolvedValueOnce({ id: 's' })
+        .mockResolvedValueOnce({ id: 'v' });
+      tx.count.mockResolvedValue(2);
+      tx.remove.mockResolvedValue(undefined);
       await service.remove('s', 'v');
-      expect(versions.remove).toHaveBeenCalled();
+      expect(tx.remove).toHaveBeenCalled();
     });
   });
 });
