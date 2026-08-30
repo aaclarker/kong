@@ -38,7 +38,7 @@ export class VersionsService {
     await this.assertServiceExists(serviceId);
 
     const page = params.page ?? 1;
-    const limit = params.limit ?? 20;
+    const limit = params.limit ?? 12;
 
     const [data, total] = await this.versions.findAndCount({
       where: { serviceId },
