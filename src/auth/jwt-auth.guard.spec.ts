@@ -1,4 +1,5 @@
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -7,6 +8,8 @@ const ctxWith = (headers: Record<string, string>) => {
   const req: any = { headers };
   return {
     ctx: {
+      getHandler: () => ({}),
+      getClass: () => ({}),
       switchToHttp: () => ({ getRequest: () => req }),
     } as unknown as ExecutionContext,
     req,
@@ -16,7 +19,8 @@ const ctxWith = (headers: Record<string, string>) => {
 describe('JwtAuthGuard', () => {
   const jwt = { verify: jest.fn() } as unknown as JwtService;
   const config = { get: jest.fn().mockReturnValue('secret') } as unknown as ConfigService;
-  const guard = new JwtAuthGuard(jwt, config);
+  const reflector = { getAllAndOverride: jest.fn().mockReturnValue(false) } as unknown as Reflector;
+  const guard = new JwtAuthGuard(jwt, config, reflector);
 
   beforeEach(() => jest.clearAllMocks());
 
@@ -43,5 +47,11 @@ describe('JwtAuthGuard', () => {
     const { ctx, req } = ctxWith({ authorization: 'Bearer good' });
     expect(guard.canActivate(ctx)).toBe(true);
     expect(req.user).toEqual({ sub: 'u', role: 'admin' });
+  });
+
+  it('allows a @Public route with no token', () => {
+    (reflector.getAllAndOverride as jest.Mock).mockReturnValueOnce(true);
+    const { ctx } = ctxWith({});
+    expect(guard.canActivate(ctx)).toBe(true);
   });
 });
