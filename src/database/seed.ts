@@ -39,11 +39,28 @@ async function seed(): Promise<void> {
       // Idempotent: clear existing rows (versions cascade from services).
       await manager.query('TRUNCATE TABLE "services" CASCADE');
 
-      for (const s of SERVICES) {
+      // Stagger timestamps so createdAt ordering is deterministic (a single
+      // transaction's now() would give every row the same value).
+      const DAY = 24 * 60 * 60 * 1000;
+      const HOUR = 60 * 60 * 1000;
+      const base = new Date('2024-01-01T00:00:00Z').getTime();
+
+      for (let i = 0; i < SERVICES.length; i++) {
+        const s = SERVICES[i];
+        const created = new Date(base + i * DAY);
         const service = manager.create(Service, {
           name: s.name,
           description: s.description,
-          versions: s.versions.map((v) => manager.create(Version, v)),
+          createdAt: created,
+          updatedAt: created,
+          versions: s.versions.map((v, j) => {
+            const vCreated = new Date(created.getTime() + j * HOUR);
+            return manager.create(Version, {
+              ...v,
+              createdAt: vCreated,
+              updatedAt: vCreated,
+            });
+          }),
         });
         await manager.save(service); // cascade:['insert'] persists versions
       }
