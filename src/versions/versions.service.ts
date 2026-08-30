@@ -1,8 +1,24 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { QueryFailedError, Repository } from 'typeorm';
 import { Version } from './entities/version.entity';
 import { Service } from '../services/entities/service.entity';
+import { CreateVersionDto } from './dto/create-version.dto';
+import { UpdateVersionDto } from './dto/update-version.dto';
+
+// Postgres unique_violation
+const PG_UNIQUE_VIOLATION = '23505';
+
+function isUniqueViolation(err: unknown): boolean {
+  return (
+    err instanceof QueryFailedError &&
+    (err.driverError as { code?: string })?.code === PG_UNIQUE_VIOLATION
+  );
+}
 
 export interface FindVersionsParams {
   page?: number;
@@ -21,12 +37,7 @@ export class VersionsService {
   async findByService(serviceId: string, params: FindVersionsParams) {
     // 404 when the parent service does not exist (distinct from a service
     // that simply has no versions — which cannot happen given the invariant).
-    const serviceExists = await this.services.count({
-      where: { id: serviceId },
-    });
-    if (!serviceExists) {
-      throw new NotFoundException(`Service ${serviceId} not found`);
-    }
+    await this.assertServiceExists(serviceId);
 
     const page = params.page ?? 1;
     const limit = params.limit ?? 20;
@@ -47,5 +58,64 @@ export class VersionsService {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  async create(serviceId: string, dto: CreateVersionDto) {
+    await this.assertServiceExists(serviceId);
+    const version = this.versions.create({ ...dto, serviceId });
+    try {
+      return await this.versions.save(version);
+    } catch (err) {
+      if (isUniqueViolation(err)) {
+        throw new ConflictException(
+          `Version "${dto.version}" already exists for this service`,
+        );
+      }
+      throw err;
+    }
+  }
+
+  async update(serviceId: string, versionId: string, dto: UpdateVersionDto) {
+    const version = await this.versions.findOne({
+      where: { id: versionId, serviceId },
+    });
+    if (!version) {
+      throw new NotFoundException(`Version ${versionId} not found`);
+    }
+    Object.assign(version, dto);
+    try {
+      return await this.versions.save(version);
+    } catch (err) {
+      if (isUniqueViolation(err)) {
+        throw new ConflictException(
+          `Version "${dto.version}" already exists for this service`,
+        );
+      }
+      throw err;
+    }
+  }
+
+  async remove(serviceId: string, versionId: string) {
+    const version = await this.versions.findOne({
+      where: { id: versionId, serviceId },
+    });
+    if (!version) {
+      throw new NotFoundException(`Version ${versionId} not found`);
+    }
+    // A service must always keep at least one version (ADR 0001).
+    const count = await this.versions.count({ where: { serviceId } });
+    if (count <= 1) {
+      throw new ConflictException(
+        'Cannot delete the last version of a service',
+      );
+    }
+    await this.versions.remove(version);
+  }
+
+  private async assertServiceExists(serviceId: string) {
+    const exists = await this.services.count({ where: { id: serviceId } });
+    if (!exists) {
+      throw new NotFoundException(`Service ${serviceId} not found`);
+    }
   }
 }

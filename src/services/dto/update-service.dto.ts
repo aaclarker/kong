@@ -1,4 +1,15 @@
-import { PartialType } from '@nestjs/mapped-types';
-import { CreateServiceDto } from './create-service.dto';
+import { IsOptional, IsString, MinLength } from 'class-validator';
 
-export class UpdateServiceDto extends PartialType(CreateServiceDto) {}
+// Only service fields are patchable here. Versions are managed through the
+// version endpoints, so `version` is intentionally not accepted.
+export class UpdateServiceDto {
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  description?: string;
+}

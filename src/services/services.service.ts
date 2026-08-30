@@ -2,6 +2,8 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Service } from './entities/service.entity';
+import { CreateServiceDto } from './dto/create-service.dto';
+import { UpdateServiceDto } from './dto/update-service.dto';
 
 export interface FindServicesParams {
   q?: string;
@@ -77,5 +79,35 @@ export class ServicesService {
     }
 
     return service;
+  }
+
+  async create(dto: CreateServiceDto) {
+    // Service + initial version in one save; cascade:['insert'] on the
+    // relation persists both in a single transaction (ADR 0001).
+    const service = this.repo.create({
+      name: dto.name,
+      description: dto.description,
+      versions: [dto.version],
+    });
+    const saved = await this.repo.save(service);
+    return this.findOne(saved.id);
+  }
+
+  async update(id: string, dto: UpdateServiceDto) {
+    // preload = load existing row + merge the patch; undefined when missing.
+    const service = await this.repo.preload({ id, ...dto });
+    if (!service) {
+      throw new NotFoundException(`Service ${id} not found`);
+    }
+    await this.repo.save(service);
+    return this.findOne(id);
+  }
+
+  async remove(id: string) {
+    // FK ON DELETE CASCADE removes the service's versions at the DB level.
+    const result = await this.repo.delete(id);
+    if (!result.affected) {
+      throw new NotFoundException(`Service ${id} not found`);
+    }
   }
 }
